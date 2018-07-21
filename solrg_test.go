@@ -77,69 +77,6 @@ func TestSolrDocument(t *testing.T) {
 
 }
 
-/*
-func TestTempSolrSearchResp(t *testing.T) {
-
-	url := "http://localhost:8983/solr/bb/select?q=ipad&fl=*,score&rows=25&defType=edismax&qf=keywords_txt_en&bq=sku_s:1945531^2.0%20sku_s:2339322^0.51%20sku_s:1945595^0.493%20sku_s:2842056^0.267%20sku_s:2339386^0.244%20sku_s:1945674^0.23%20sku_s:2408224^0.227%20sku_s:2842092^0.175%20sku_s:1918265^0.157%20sku_s:2817582^0.155%20sku_s:1918159^0.146%20sku_s:1918229^0.138%20sku_s:2538172^0.131%20sku_s:2475916^0.131%20sku_s:2809771^0.13%20sku_s:9947181^0.127%20sku_s:2319133^0.124%20sku_s:2701307^0.124%20sku_s:9924603^0.123%20sku_s:2343139^0.121%20sku_s:2678393^0.118%20sku_s:2205043^0.116%20sku_s:2197043^0.113%20sku_s:2319197^0.113%20sku_s:2903297^0.111%20sku_s:2490083^0.109%20sku_s:2884085^0.108%20sku_s:9635348^0.108%20sku_s:2339877^0.108%20sku_s:1151337^0.107%20sku_s:2318055^0.107%20sku_s:2678269^0.107%20sku_s:2874076^0.107%20sku_s:2343263^0.105%20sku_s:2340557^0.104%20sku_s:2390524^0.104%20sku_s:2343563^0.103%20sku_s:1114133^0.103%20sku_s:2339904^0.102%20sku_s:2861158^0.102%20sku_s:2629904^0.102%20sku_s:1609376^0.102%20sku_s:1271742^0.101%20sku_s:9809492^0.101%20sku_s:1286073^0.1%20sku_s:2330145^0.1%20sku_s:3396395^0.1%20sku_s:2330321^0.1%20sku_s:2642076^0.1%20sku_s:2883101^0.1&facet=true&facet.field=class_s&facet.field=on_sale_s&json.nl=arrntv"
-
-	var sresp solrg.SolrSearchResponse
-
-	var client = &http.Client{
-		Timeout: time.Second * 30,
-	}
-
-	resp, err := client.Get(url)
-	if err != nil {
-		t.Error(err)
-	}
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-	}
-	json.Unmarshal(buf, &sresp)
-
-	//can we iterate through facets?
-	t.Logf(sresp.ResponseHeader.Params.Bq)
-
-	for k, v := range sresp.FacetCounts.FacetFields {
-		t.Logf("key: %s", k)
-		t.Log("values:")
-		for _, val := range v {
-			t.Logf("\t%s (%d)", val.Name, val.Value)
-		}
-	}
-
-	//can we iterate through docs?
-	t.Log("Showing docs")
-	//t.Log(sresp.Response.Docs)
-	for _, v := range sresp.Response.Docs {
-		//v is the field
-		for k, val := range v {
-			switch assertVal := val.(type) {
-			case float64:
-				t.Logf("Numeric field, %s: %f", k, assertVal)
-			case string:
-				t.Logf("String field %s: %s", k, assertVal)
-			case []interface{}:
-				t.Logf("An array %s: %s", k, assertVal)
-			}
-		}
-
-		t.Logf("Getting a string field, type_s: %s", v.String("type_s"))
-		f, _ := v.Float64("reg_price_f")
-		t.Logf("Getting a float field, reg_price_f: %f", f)
-
-		arr, _ := v.Slice("cat_id_ss")
-		t.Logf("Getting an array field, cat_id_ss: %s", arr)
-
-		arr2, _ := v.StringSlice("cat_id_ss")
-		t.Logf("Getting a string slice, cat_id_ss: %s", arr2)
-
-	}
-
-}
-*/
-
 func TestLBNodes(t *testing.T) {
 
 	sc, err := solrg.NewSolrClient("localhost:9983")
@@ -213,7 +150,7 @@ func TestIndexDocs(t *testing.T) {
 	docs := fakeDocs()
 	//jsn, _ := docs.SolrJSON()
 
-	err = sc.PostDocs(docs, "test")
+	err = sc.PostDocs(&docs, "test")
 	must(err)
 
 	// commit the docs
@@ -225,7 +162,7 @@ func TestIndexDocs(t *testing.T) {
 		Facet:      "true",
 		FacetField: []string{"test_s", "test_txt"},
 	}
-	resp, err := sc.Query("test", "select", params, 10*time.Second)
+	resp, err := sc.Query("test", "select", &params, 10*time.Second)
 	must(err)
 
 	numDocs := resp.Response.NumFound
@@ -247,7 +184,7 @@ func TestIndexDocs(t *testing.T) {
 
 	//query again with 1 facets
 	params.FacetField = []string{"test_s"}
-	resp, err = sc.Query("test", "select", params, 10*time.Second)
+	resp, err = sc.Query("test", "select", &params, 10*time.Second)
 	if err != nil {
 		t.Error(err)
 	}
@@ -261,7 +198,7 @@ func TestIndexDocs(t *testing.T) {
 
 	// now query for a specific doc
 	params.Q = "test_s:\"test1\""
-	resp, err = sc.Query("test", "select", params, 10*time.Second)
+	resp, err = sc.Query("test", "select", &params, 10*time.Second)
 	must(err)
 	if resp.Response.NumFound == 1 {
 		t.Log("Second search returned 1 doc as expected")
@@ -274,7 +211,7 @@ func TestIndexDocs(t *testing.T) {
 
 	// how many docs are there now?
 	params.Q = "*:*"
-	resp, err = sc.Query("test", "select", params, 10*time.Second)
+	resp, err = sc.Query("test", "select", &params, 10*time.Second)
 	must(err)
 
 	if resp.Response.NumFound < numDocs {
