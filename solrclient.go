@@ -27,6 +27,22 @@ func NewSolrClient(zksString string) (*SolrClient, error) {
 	return &sc, err
 }
 
+func NewDirectSolrClient(solrUrl string) (*SolrClient, error) {
+	sc := SolrClient{}
+	sc.liveNodes.Nodes = make([]string, 1)
+	sc.liveNodes.Nodes[0] = solrUrl
+	sc.numNodes = 1
+	return &sc, nil
+}
+
+type SolrCollectionExistsError struct {
+	collectionName string
+}
+
+func (e *SolrCollectionExistsError) Error() string {
+	return fmt.Sprintf("Collection %s already exists", e.collectionName)
+}
+
 // SolrClient Solr Client struct
 type SolrClient struct {
 	liveNodes     LiveNodes
@@ -72,14 +88,14 @@ func (sc *SolrClient) LiveSolrNodes() (*LiveNodes, error) {
 }
 
 // Search executes a Solr search
-func (sc *SolrClient) Query(collection string, reqHandler string, params SolrParams, timeout time.Duration) (*SolrSearchResponse, error) {
+func (sc *SolrClient) Query(collection string, reqHandler string, params *SolrParams, timeout time.Duration) (*SolrSearchResponse, error) {
 	url := "http://" + sc.LBNodeAddress() + "/" + collection + "/" + reqHandler
 
 	params.JSONNl = "arrntv"
 
 	v, _ := query.Values(params)
 
-	log.Print(url + "?" + v.Encode())
+	//log.Print(url + "?" + v.Encode())
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(v.Encode())))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -194,10 +210,10 @@ func (sc *SolrClient) DeleteByQuery(collectionName string, query string) error {
 }
 
 // PostDocs indexes a SolrDocumentCollection
-func (sc *SolrClient) PostDocs(docs SolrDocumentCollection, targetCollection string) error {
-	url := "http://" + sc.LBNodeAddress() + "/" + targetCollection + "/update/json/docs"
-
+func (sc *SolrClient) PostDocs(docs *SolrDocumentCollection, targetCollection string) error {
+	url := "http://" + sc.LBNodeAddress() + "/" + targetCollection + "/update"
 	str, err := docs.SolrJSON()
+
 	jsn := []byte("[" + str + "]")
 	if err != nil {
 		return err
@@ -246,6 +262,9 @@ func (sc *SolrClient) CreateCollection(name string, numShards int, replicationFa
 		//success
 		return nil
 	} else if respCode == 400 {
+		if strings.HasPrefix(collectionsAPIResp.Exception.Msg, "collection already exists") {
+			return &SolrCollectionExistsError{collectionsAPIResp.Exception.Msg}
+		}
 		return fmt.Errorf("Error in CreateCollection(): %s", collectionsAPIResp.Exception.Msg)
 	}
 	return nil
