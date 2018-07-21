@@ -50,6 +50,8 @@ resp, err := sc.Query("test", "select", &params, 10*time.Second)
 
 The Solr Response is serialized to structs located in [https://github.com/ezeev/solrg/blob/master/solrresp.go](https://github.com/ezeev/solrg/blob/master/solrresp.go)
 
+For a full list of available request params, see [https://github.com/ezeev/solrg/blob/master/solrparams.go](https://github.com/ezeev/solrg/blob/master/solrparams.go). The current SolrParams struct doesn't cover every available request param by a long shot. I'll be adding more as I need them. PRs welcome.
+
 
 ## Roadmap
 
