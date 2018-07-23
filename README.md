@@ -7,7 +7,7 @@ Solrg is a simple Go client for Apache Solr modeled after [Solrj](https://lucene
 - Built-in load balancing (optional) - Uses ZooKeeper state to discover and route requests
 - Simple API for the most commonly used Solr operations.
 
-## Indexing
+## Example Usage
 
 ```go
 // Create a solr client
@@ -36,6 +36,13 @@ err = sc.PostDocs(&docs, "test")
 // Commit changes
 err = sc.Commit("test")
 ```
+
+Alternatively, if you want to connect directly to a Solr node, you can create a client using this:
+
+```go
+sc, err := solrg.NewDirectSolrClient("localhost:8983/solr")
+```
+
 
 ## Querying
 
