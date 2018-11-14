@@ -43,7 +43,6 @@ Alternatively, if you want to connect directly to a Solr node, you can create a 
 sc, err := solrg.NewDirectSolrClient("localhost:8983/solr")
 ```
 
-
 ## Querying
 
 ```go

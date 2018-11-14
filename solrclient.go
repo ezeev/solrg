@@ -92,11 +92,7 @@ func (sc *SolrClient) Query(collection string, reqHandler string, params *SolrPa
 	url := "http://" + sc.LBNodeAddress() + "/" + collection + "/" + reqHandler
 
 	params.JSONNl = "arrntv"
-
 	v, _ := query.Values(params)
-
-	//log.Print(url + "?" + v.Encode())
-
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(v.Encode())))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -205,6 +201,32 @@ func (sc *SolrClient) DeleteByQuery(collectionName string, query string) error {
 	if resp.StatusCode != 200 {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("Error delete docs by query, status code = %d, full error:\n%s", resp.StatusCode, body)
+	}
+	return nil
+}
+
+func (sc *SolrClient) PostStruct(data interface{}, targetCollection string) error {
+	url := "http://" + sc.LBNodeAddress() + "/" + targetCollection + "/update"
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	//fmt.Println(string(dataBytes))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(dataBytes))
+	req.Header.Set("Content-Type", "application/json")
+
+	var client = &http.Client{
+		Timeout: time.Second * 10,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Error indexing docs, status code = %d, full error:\n%s", resp.StatusCode, body)
 	}
 	return nil
 }
