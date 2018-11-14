@@ -1,25 +1,16 @@
-package solrg_test
+package solrg
 
 import (
-	"log"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/ezeev/solrg"
 )
-
-func must(err error) {
-	if err != nil {
-		log.Fatalf("Fatal error: %s", err)
-	}
-}
 
 func TestSolrDocCollection(t *testing.T) {
 
-	doc := solrg.NewSolrDocument("1")
+	doc := NewSolrDocument("1")
 	doc.SetField("test", []string{"test1", "test2", "test3"})
-	docs := solrg.NewSolrDocumentCollection()
+	docs := NewSolrDocumentCollection()
 	err := docs.AddDoc(doc)
 	must(err)
 	t.Log(docs)
@@ -40,8 +31,83 @@ func TestSolrDocCollection(t *testing.T) {
 
 }
 
+func TestSolrDirectClient(t *testing.T) {
+	sc, err := NewDirectSolrClient("localhost:8983/solr")
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = sc.Commit("gettingstarted")
+	if err != nil {
+		t.Log(err)
+	}
+
+}
+
+func TestSolrPostStruct(t *testing.T) {
+	sc, _ := NewSolrClient("localhost:9983")
+	sc.DeleteCollection("test")
+	err := sc.CreateCollection("test", 1, 2, 10*time.Second)
+	if err != nil {
+		t.Error(err)
+	}
+
+	type TestStructDoc struct {
+		Field1 string   `json:"field1_s"`
+		Field2 int      `json:"field2_i"`
+		Field3 float64  `json:"field3_f"`
+		Field4 []string `json:"field4_ss"`
+	}
+
+	doc := TestStructDoc{
+		Field1: "test",
+		Field2: 10,
+		Field3: 1.23,
+		Field4: []string{"val1", "val2", "val3"},
+	}
+
+	docs := make([]interface{}, 1)
+	docs[0] = doc
+
+	err = sc.PostStructs(docs, "test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	sc.Commit("test")
+
+	//make sure it is there
+	query, err := sc.Query("test", "select", &SolrParams{Q: "*:*"}, time.Second*10)
+	if err != nil {
+		t.Error(err)
+	}
+	if query.Response.NumFound == 0 {
+		t.Fatalf("Expected at least one doc to be returned but there are %d", query.Response.NumFound)
+	}
+
+	err = sc.DeleteCollection("test")
+	if err != nil {
+		t.Error(err)
+	}
+
+}
+
+func TestSolrCollectionAlreadyExists(t *testing.T) {
+
+	sc, _ := NewSolrClient("localhost:9983")
+	err := sc.CreateCollection("gettingstarted", 1, 2, 10*time.Second)
+
+	serr, ok := err.(*SolrCollectionExistsError)
+	if ok {
+		t.Logf("Received SolrCollectionExistsError as expected. msg: %s", serr.Error())
+	} else {
+		t.Fail()
+	}
+
+}
+
 func TestSolrDocument(t *testing.T) {
-	sd := solrg.NewSolrDocument("1")
+	sd := NewSolrDocument("1")
 	vals := []string{"string1", "string2", "string3"}
 	sd.SetField("test", vals)
 
@@ -79,7 +145,7 @@ func TestSolrDocument(t *testing.T) {
 
 func TestLBNodes(t *testing.T) {
 
-	sc, err := solrg.NewSolrClient("localhost:9983")
+	sc, err := NewSolrClient("localhost:9983")
 	must(err)
 
 	ln, _ := sc.LiveSolrNodes()
@@ -93,16 +159,16 @@ func TestLBNodes(t *testing.T) {
 	t.Logf("Call 6: %s", sc.LBNodeAddress())
 }
 
-func fakeDocs() solrg.SolrDocumentCollection {
-	doc := solrg.NewSolrDocument("1")
+func fakeDocs() SolrDocumentCollection {
+	doc := NewSolrDocument("1")
 	doc.SetField("test_txt", []string{"test1", "test2", "test3"})
 	doc.SetField("test_s", []string{"test1"})
 
-	doc2 := solrg.NewSolrDocument("2")
+	doc2 := NewSolrDocument("2")
 	doc2.SetField("test_txt", []string{"test3", "test4", "test5"})
 	doc2.SetField("test_s", []string{"test2"})
 
-	col := solrg.NewSolrDocumentCollection()
+	col := NewSolrDocumentCollection()
 	col.AddDoc(doc)
 	col.AddDoc(doc2)
 
@@ -111,7 +177,7 @@ func fakeDocs() solrg.SolrDocumentCollection {
 
 func TestSolrDocJson(t *testing.T) {
 
-	doc := solrg.NewSolrDocument("1")
+	doc := NewSolrDocument("1")
 	doc.SetField("test_txt", []string{"test1", "test2", "test3"})
 	doc.SetField("test_s", []string{"test1"})
 
@@ -119,10 +185,10 @@ func TestSolrDocJson(t *testing.T) {
 	t.Logf("Json: %s", jsn)
 
 	//doc collection
-	col := solrg.NewSolrDocumentCollection()
+	col := NewSolrDocumentCollection()
 	col.AddDoc(doc)
 
-	doc2 := solrg.NewSolrDocument("2")
+	doc2 := NewSolrDocument("2")
 	doc2.SetField("test_txt", []string{"test3", "test4", "test5"})
 	doc2.SetField("test_s", []string{"test2"})
 
@@ -134,7 +200,7 @@ func TestSolrDocJson(t *testing.T) {
 
 func TestIndexDocs(t *testing.T) {
 
-	sc, err := solrg.NewSolrClient("localhost:9983")
+	sc, err := NewSolrClient("localhost:9983")
 	must(err)
 
 	// create test collection
@@ -157,7 +223,7 @@ func TestIndexDocs(t *testing.T) {
 	sc.Commit("test")
 
 	// query all docs and also add a facet
-	params := solrg.SolrParams{
+	params := SolrParams{
 		Q:          "*:*",
 		Facet:      "true",
 		FacetField: []string{"test_s", "test_txt"},
@@ -179,8 +245,8 @@ func TestIndexDocs(t *testing.T) {
 		t.Error("Expected to get 2 facet fields back but did not!")
 	}
 
-	t.Logf("We queries w/ 2 facet fields. Here is the first facet %s", resp.FacetCounts.FacetFields["test_s"])
-	t.Logf("Here is the second facet: %s", resp.FacetCounts.FacetFields["test_txt2"])
+	t.Logf("We queries w/ 2 facet fields. Here is the first facet %v", resp.FacetCounts.FacetFields["test_s"])
+	t.Logf("Here is the second facet: %v", resp.FacetCounts.FacetFields["test_txt2"])
 
 	//query again with 1 facets
 	params.FacetField = []string{"test_s"}
@@ -194,7 +260,7 @@ func TestIndexDocs(t *testing.T) {
 	}
 
 	//what are the facets now
-	t.Logf("Query with 1 facets returned: %s", resp.FacetCounts.FacetFields["test_s"])
+	t.Logf("Query with 1 facets returned: %v", resp.FacetCounts.FacetFields["test_s"])
 
 	// now query for a specific doc
 	params.Q = "test_s:\"test1\""
@@ -227,7 +293,7 @@ func TestIndexDocs(t *testing.T) {
 }
 func TestCreateDeleteCollection(t *testing.T) {
 
-	sc, err := solrg.NewSolrClient("localhost:9983")
+	sc, err := NewSolrClient("localhost:9983")
 	must(err)
 
 	err = sc.CreateCollection("test", 1, 2, time.Second*180)
@@ -253,7 +319,7 @@ func TestCreateDeleteCollection(t *testing.T) {
 
 func TestZkConnect(t *testing.T) {
 
-	sc, err := solrg.NewSolrClient("localhost:9983")
+	sc, err := NewSolrClient("localhost:9983")
 	must(err)
 	t.Log(sc)
 	ln, err := sc.LiveSolrNodes()

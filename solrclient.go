@@ -205,7 +205,7 @@ func (sc *SolrClient) DeleteByQuery(collectionName string, query string) error {
 	return nil
 }
 
-func (sc *SolrClient) PostStruct(data interface{}, targetCollection string) error {
+func (sc *SolrClient) PostStructs(data []interface{}, targetCollection string) error {
 	url := "http://" + sc.LBNodeAddress() + "/" + targetCollection + "/update"
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
